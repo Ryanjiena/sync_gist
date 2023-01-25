@@ -23,13 +23,17 @@ jobs:
         run: |
           #!/bin/bash
 
+          USER=$(whoami)
+          TMP_DIR="${TMP_DIR:-$(mktemp -d /tmp/sync.XXXX)}"
+          LOG_FILE="${LOG_FILE:-${TMP_DIR}/build.log}"
+
           mkdir -p ~/.ssh
           echo "${SSH_KEY//\\n/\n}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -t rsa gitcode.net >> ~/.ssh/known_hosts
           git config --global user.name "Ryanjiena"
           git config --global user.email "${USER_EMAIL}"
-          git clone "${DESTINATION_REPO}" dest-repo
+          git clone "${DESTINATION_REPO}" dest-repo > /dev/null 2>&1
 
           cd dest-repo || exit
           echo "${GIST_TOKEN}" | gh auth login --with-token
@@ -40,7 +44,9 @@ jobs:
             echo -e "\033[42;30m nothing to commit, working tree clean~ \033[0m"
           else
             DATE=$(date "+%Y-%m-%d %H:%M:%S")
-            git pull origin main && git add . && git commit -m "Sync by: ${USER}, at: ${DATE}" && git push origin main
+            git add *.json
+            git commit -m "Sync by: ${USER}, at: ${DATE}"
+            git push origin main > /dev/null 2>&1
 
             # echo "${DATE}" > ../sync-gist/last_sync_time.txt
             # cd ../sync-gist || exit
