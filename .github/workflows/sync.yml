@@ -32,7 +32,7 @@ jobs:
 
           cd dest-repo || exit
           echo "${GIST_TOKEN}" | gh auth login --with-token
-          gh gist list --limit 1000 | awk '{print $1}' | xargs -I {} curl -fsSL -O "https://gist.github.com/JaimeZeng/{}.json"
+          gh gist list --limit 1000 | awk '{print $1}' | xargs -I {} curl -fsSL -O "https://gist.github.com/JaimeZeng/{}.json?callback=gist_callback_{}"
 
           git add .
           if [ "$(git status -sb)" == "## main...origin/main" ];then
