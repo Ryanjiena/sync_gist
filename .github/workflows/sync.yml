@@ -1,0 +1,51 @@
+name: Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */8 * * *"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: "main"
+          path: "sync-gist"
+      - name: sync
+        env:
+          DESTINATION_REPO: ${{ secrets.DESTINATION_REPO }}
+          GIST_TOKEN: ${{ secrets.GH_TOKEN }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          USER_EMAIL: ${{ secrets.USER_EMAIL }}
+        run: |
+          #!/bin/bash
+
+          mkdir -p ~/.ssh
+          echo "${SSH_KEY//\\n/\n}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa gitcode.net >> ~/.ssh/known_hosts
+          git config --global user.name "Ryanjiena"
+          git config --global user.email "${USER_EMAIL}"
+          git clone "${DESTINATION_REPO}" dest-repo
+
+          cd dest-repo || exit
+          echo "${GIST_TOKEN}" | gh auth login --with-token
+          gh gist list --limit 1000 | awk '{print $1}' | xargs -I {} curl -fsSL -O "https://gist.github.com/JaimeZeng/{}.json"
+
+          git add .
+          if [ "$(git status -sb)" == "## main...origin/main" ];then
+            echo -e "\033[42;30m nothing to commit, working tree clean~ \033[0m"
+          else
+            DATE=$(date "+%Y-%m-%d %H:%M:%S")
+            git pull origin main && git add . && git commit -m "Sync by: ${USER}, at: ${DATE}" && git push origin main
+
+            # echo "${DATE}" > ../sync-gist/last_sync_time.txt
+            # cd ../sync-gist || exit
+            # git config --local user.name "Ryanjiena"
+            # git config --local user.email "43134606+Ryanjiena@users.noreply.github.com"
+            # git add last_sync_time.txt
+            # git commit -m "Sync by: ${USER}, at: ${DATE}" && git push origin main
+          fi
